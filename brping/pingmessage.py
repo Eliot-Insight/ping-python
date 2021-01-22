@@ -307,7 +307,7 @@ class PingParser(object):
      WAIT_CHECKSUM_H,    #     Waiting for the checksum high byte
     ) = range(-1, 12)
 
-    def __init__(self, debug=False):
+    def __init__(self):
         self.buf = bytearray()
         self.state = self.WAIT_START
         self.payload_length = 0  # payload length remaining to be parsed for the message currently being parsed
@@ -323,10 +323,6 @@ class PingParser(object):
                 'wait_payload', 'wait_checksum_l', 'wait_checksum_h', 
             )
         ]
-
-        self._debug = debug
-        if self._debug:
-            self._pass_fail_order = []
 
     def progress(self, msg_byte):
         self.buf.append(msg_byte)
@@ -386,13 +382,9 @@ class PingParser(object):
 
         if self.rx_msg.verify_checksum():
             self.parsed += 1
-            if self._debug:
-                self._pass_fail_order.append(1)
             return self.NEW_MESSAGE
         else:
             self.errors += 1
-            if self._debug:
-                self._pass_fail_order.append(0)
             return self.PARSE_ERROR
 
     # Feed the parser a single byte
