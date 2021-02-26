@@ -290,8 +290,8 @@ class PingMessage(object):
         return representation
 
 
-# A class to digest a serial stream and decode PingMessages
 class PingParser(object):
+    ''' A class to digest a serial stream and decode PingMessages. '''
     (PARSE_ERROR,        # -1  Error occurred while parsing
      NEW_MESSAGE,        #  0  Just got a complete checksum-verified message
      WAIT_START,         #  1  Waiting for the first character of a message 'B'
@@ -310,8 +310,8 @@ class PingParser(object):
     def __init__(self):
         self.buf = bytearray()
         self.state = self.WAIT_START
-        self.payload_length = 0  # payload length remaining to be parsed for the message currently being parsed
-        self.message_id = 0  # message id of the message currently being parsed
+        self.payload_length = 0  # remaining for the message being parsed
+        self.message_id = 0 # of the message being parsed
         self.errors = 0
         self.parsed = 0
         self.rx_msg = None  # most recently parsed message
@@ -344,7 +344,7 @@ class PingParser(object):
         self.progress(msg_byte)
 
     def wait_length_h(self, msg_byte):
-        self.payload_length = (msg_byte << 8) | self.payload_length
+        self.payload_length |= (msg_byte << 8)
         self.progress(msg_byte)
 
     def wait_msg_id_l(self, msg_byte):
@@ -352,7 +352,7 @@ class PingParser(object):
         self.progress(msg_byte)
 
     def wait_msg_id_h(self, msg_byte):
-        self.message_id = (msg_byte << 8) | self.message_id
+        self.message_id |= (msg_byte << 8)
         self.progress(msg_byte)
 
     def wait_src_id(self, msg_byte):
@@ -360,13 +360,13 @@ class PingParser(object):
 
     def wait_dst_id(self, msg_byte):
         self.progress(msg_byte)
-        if self.payload_length == 0: # no payload bytes
+        if self.payload_length == 0: # no payload bytes -> skip waiting
             self.state += 1
 
     def wait_payload(self, msg_byte):
         self.buf.append(msg_byte)
         self.payload_length -= 1
-        if self.payload_length == 0:
+        if self.payload_length == 0: # no payload bytes remaining
             self.state += 1
 
     def wait_checksum_l(self, msg_byte):
@@ -387,14 +387,18 @@ class PingParser(object):
             self.errors += 1
             return self.PARSE_ERROR
 
-    # Feed the parser a single byte
-    # Returns the current parse state
-    # If the byte fed completes a valid message, return PingParser.NEW_MESSAGE
-    # The decoded message will be available in the self.rx_msg attribute until a new message is decoded
-    def parse_byte(self, msg_byte):
-        if type(msg_byte) != int:
+    def parse_byte(self, msg_byte) -> int:
+        ''' Feeds the parser a single byte and returns the current parse state.
+
+        'msg_byte' is the byte to parse.
+            If it completes a valid message, returns PingParser.NEW_MESSAGE if
+                the message is valid, else PingParser.PARSE_ERROR.
+            The decoded PingMessage will be available in the self.rx_msg
+                attribute until a new message is decoded.
+
+        '''
+        if not isinstance(msg_byte, int):
             msg_byte = ord(msg_byte)
-        # print("byte: %d, state: %d, rem: %d, id: %d" % (msg_byte, self.state, self.payload_length, self.message_id))
 
         result = self._parse_byte[self.state - 1](msg_byte)
 
